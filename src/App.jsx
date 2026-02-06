@@ -533,7 +533,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
             <span style={{ fontSize: 18 }}>🔄</span>
             <div>
               <p style={{ margin: 0, fontSize: 12, color: "#10A37F", fontWeight: 700 }}>Usando ChatGPT (fallback)</p>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>Los créditos de Anthropic se agotaron. Los datos pueden ser menos precisos sin búsqueda web en tiempo real.</p>
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>Los créditos de Anthropic se agotaron. Datos obtenidos via ChatGPT con búsqueda web.</p>
             </div>
           </div>
         )}

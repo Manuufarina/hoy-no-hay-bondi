@@ -58,14 +58,14 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── Fallback to OpenAI (ChatGPT) ──
+  // ── Fallback to OpenAI (ChatGPT) with web search ──
   if (!openaiKey) {
     return res.status(500).json({ error: 'No fallback API key configured' });
   }
 
   try {
-    // Convert Anthropic message format to OpenAI format
-    const messages = (req.body.messages || []).map(m => ({
+    // Build input for OpenAI Responses API
+    const input = (req.body.messages || []).map(m => ({
       role: m.role,
       content: typeof m.content === 'string'
         ? m.content
@@ -74,7 +74,8 @@ export default async function handler(req, res) {
           : String(m.content),
     }));
 
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Use OpenAI Responses API with web search enabled
+    const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -82,8 +83,18 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: req.body.max_tokens || 3000,
-        messages,
+        input,
+        tools: [{
+          type: 'web_search_preview',
+          user_location: {
+            type: 'approximate',
+            country: 'AR',
+            city: 'Buenos Aires',
+            region: 'Buenos Aires',
+            timezone: 'America/Argentina/Buenos_Aires',
+          },
+          search_context_size: 'medium',
+        }],
       }),
     });
 
@@ -95,9 +106,23 @@ export default async function handler(req, res) {
       });
     }
 
-    // Convert OpenAI response to Anthropic-compatible format
-    const text = openaiData.choices?.[0]?.message?.content || '';
+    // Extract text from Responses API output
+    // output_text is a shortcut, or we can parse output array
+    let text = openaiData.output_text || '';
 
+    if (!text && openaiData.output) {
+      for (const item of openaiData.output) {
+        if (item.type === 'message' && item.content) {
+          for (const block of item.content) {
+            if (block.type === 'output_text' && block.text) {
+              text += block.text;
+            }
+          }
+        }
+      }
+    }
+
+    // Convert to Anthropic-compatible format
     return res.status(200).json({
       content: [{ type: 'text', text }],
       stop_reason: 'end_turn',
