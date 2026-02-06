@@ -26,8 +26,10 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── Try Anthropic first ──
-  if (anthropicKey) {
+  // ── Try Anthropic first (unless client says to skip) ──
+  const skipAnthropic = req.body._skipAnthropic === true;
+
+  if (anthropicKey && !skipAnthropic) {
     try {
       const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -46,20 +48,28 @@ export default async function handler(req, res) {
         return res.status(200).json(data);
       }
 
-      // Check if it's a credit/rate limit error that warrants fallback to OpenAI
-      const shouldFallback =
-        response.status === 429 ||
-        response.status === 529 ||
-        data?.error?.type === 'rate_limit_error' ||
-        data?.error?.type === 'overloaded_error' ||
+      // Classify the error
+      const errMsg = (data?.error?.message || '').toLowerCase();
+      const isCreditError =
         data?.error?.type === 'authentication_error' ||
-        (data?.error?.message || '').toLowerCase().includes('credit') ||
-        (data?.error?.message || '').toLowerCase().includes('quota') ||
-        (data?.error?.message || '').toLowerCase().includes('billing');
+        errMsg.includes('credit') ||
+        errMsg.includes('quota') ||
+        errMsg.includes('billing');
+      const isRateLimit =
+        response.status === 429 ||
+        data?.error?.type === 'rate_limit_error';
+      const isOverloaded =
+        response.status === 529 ||
+        data?.error?.type === 'overloaded_error';
+
+      const shouldFallback = isCreditError || isRateLimit || isOverloaded;
 
       if (!shouldFallback || !openaiKey) {
         return res.status(response.status).json(data);
       }
+
+      // Tag the fallback reason so the frontend can track credit state
+      req._fallbackReason = isCreditError ? 'credits_exhausted' : isRateLimit ? 'rate_limited' : 'overloaded';
 
       // Fall through to OpenAI fallback
     } catch (error) {
@@ -144,12 +154,16 @@ export default async function handler(req, res) {
     }
 
     // Convert to Anthropic-compatible format
-    return res.status(200).json({
+    const result = {
       content: [{ type: 'text', text }],
       stop_reason: 'end_turn',
       model: openaiData.model || 'gpt-4o',
       _provider: 'openai',
-    });
+    };
+    // Include fallback reason so frontend can track credit state
+    if (req._fallbackReason) result._fallbackReason = req._fallbackReason;
+    if (skipAnthropic) result._fallbackReason = result._fallbackReason || 'skipped_by_client';
+    return res.status(200).json(result);
   } catch (error) {
     const msg = error.name === 'AbortError' ? 'OpenAI API timeout' : error.message;
     return res.status(500).json({ error: msg });

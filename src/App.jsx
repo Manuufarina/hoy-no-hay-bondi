@@ -114,6 +114,8 @@ export default function HoyNoHayBondi() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [provider, setProvider] = useState(null); // 'anthropic' | 'openai'
+  const creditExhaustedRef = useRef(null); // timestamp when credits were detected as exhausted
+  const CREDIT_COOLDOWN_MS = 10 * 60 * 1000; // 10 min cooldown before retrying Anthropic
 
   const requestNotifPermission = useCallback(async () => {
     if (!("Notification" in window)) { addNotifHistory("⚠️ Navegador no soporta notificaciones"); return; }
@@ -191,11 +193,18 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
 
       const apiUrl = getApiUrl();
       const isDirect = apiUrl.startsWith("https://");
+
+      // Check if we should skip Anthropic (credits exhausted recently)
+      const creditExhausted = creditExhaustedRef.current;
+      const shouldSkipAnthropic = !isDirect && creditExhausted &&
+        (Date.now() - creditExhausted) < CREDIT_COOLDOWN_MS;
+
       const requestBody = {
         model: "claude-sonnet-4-20250514",
         max_tokens: 3000,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
-        messages: [{ role: "user", content: buildPrompt() }]
+        messages: [{ role: "user", content: buildPrompt() }],
+        ...(shouldSkipAnthropic && { _skipAnthropic: true })
       };
 
       const headers = { "Content-Type": "application/json" };
@@ -253,8 +262,14 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
         data = await response.json();
       }
 
-      // Track which provider answered
+      // Track which provider answered and credit state
       if (data._provider) setProvider(data._provider);
+      if (data._fallbackReason === 'credits_exhausted') {
+        creditExhaustedRef.current = Date.now();
+      } else if (data._provider === 'anthropic') {
+        // Credits are working again — clear exhaustion state
+        creditExhaustedRef.current = null;
+      }
 
       // Extract text from response (handles mixed content with web_search blocks)
       const fullText = extractTextFromResponse(data);
@@ -576,7 +591,11 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
             <span style={{ fontSize: 18 }}>🔄</span>
             <div>
               <p style={{ margin: 0, fontSize: 12, color: "#10A37F", fontWeight: 700 }}>Usando ChatGPT (fallback)</p>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>Los créditos de Anthropic se agotaron. Datos obtenidos via ChatGPT con búsqueda web.</p>
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>
+                {creditExhaustedRef.current
+                  ? `Créditos de Anthropic agotados. Se reintentará en ${Math.max(1, Math.ceil((CREDIT_COOLDOWN_MS - (Date.now() - creditExhaustedRef.current)) / 60000))} min.`
+                  : "Datos obtenidos via ChatGPT con búsqueda web."}
+              </p>
             </div>
           </div>
         )}
