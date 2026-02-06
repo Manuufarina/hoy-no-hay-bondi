@@ -72,10 +72,12 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── Fallback 1: Google Gemini with Google Search grounding ──
+  // ── Fallback 1: Google Gemini ──
   if (geminiKey) {
     try {
-      const userMessages = (req.body.messages || []).map(m => ({
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+      const geminiSystemPrompt = 'Sos un monitor de transporte público argentino. Tu tarea es buscar en la web información ACTUAL sobre paros de colectivos en Buenos Aires y responder SOLO con JSON puro, sin markdown ni texto extra. Es CRÍTICO que la información sea precisa y verificada: NO inventes líneas afectadas ni paros que no existan. Si no encontrás información sobre paros hoy, respondé con hay_paros: false y lineas_afectadas vacío. Siempre indicá la fuente real de cada dato. Preferí fuentes oficiales y verificadas.';
+      const geminiMessages = (req.body.messages || []).map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: typeof m.content === 'string'
           ? m.content
@@ -84,37 +86,69 @@ export default async function handler(req, res) {
             : String(m.content) }],
       }));
 
-      const geminiResponse = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: 'Sos un monitor de transporte público argentino. Tu tarea es buscar en la web información ACTUAL sobre paros de colectivos en Buenos Aires y responder SOLO con JSON puro, sin markdown ni texto extra. Es CRÍTICO que la información sea precisa y verificada: NO inventes líneas afectadas ni paros que no existan. Si no encontrás información sobre paros hoy, respondé con hay_paros: false y lineas_afectadas vacío. Siempre indicá la fuente real de cada dato. Preferí fuentes oficiales y verificadas.' }],
-            },
-            contents: userMessages,
-            tools: [{ google_search: {} }],
-          }),
+      // Helper: extract text from Gemini response
+      function extractGeminiText(data) {
+        const parts = data?.candidates?.[0]?.content?.parts;
+        if (!parts) return null;
+        const text = parts.map(p => p.text || '').join('');
+        return text || null;
+      }
+
+      // Attempt 1: with Google Search grounding
+      let geminiResponse = await fetchWithTimeout(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: geminiSystemPrompt }] },
+          contents: geminiMessages,
+          tools: [{ google_search: {} }],
+        }),
+      });
+
+      let geminiData = await geminiResponse.json();
+      let geminiText = geminiResponse.ok ? extractGeminiText(geminiData) : null;
+
+      // Attempt 2: if Google Search failed (billing, quota, tool not available), retry without it
+      if (!geminiText) {
+        const errMsg = (geminiData?.error?.message || '').toLowerCase();
+        const errStatus = geminiData?.error?.status || '';
+        const isSearchError =
+          !geminiResponse.ok ||
+          errStatus === 'RESOURCE_EXHAUSTED' ||
+          errStatus === 'FAILED_PRECONDITION' ||
+          errStatus === 'PERMISSION_DENIED' ||
+          errMsg.includes('quota') ||
+          errMsg.includes('billing') ||
+          errMsg.includes('credit') ||
+          errMsg.includes('google_search') ||
+          errMsg.includes('not enabled') ||
+          errMsg.includes('not supported') ||
+          errMsg.includes('exhausted');
+
+        if (isSearchError) {
+          geminiResponse = await fetchWithTimeout(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: geminiSystemPrompt }] },
+              contents: geminiMessages,
+            }),
+          });
+          geminiData = await geminiResponse.json();
+          geminiText = geminiResponse.ok ? extractGeminiText(geminiData) : null;
         }
-      );
+      }
 
-      const geminiData = await geminiResponse.json();
-
-      if (geminiResponse.ok && geminiData.candidates?.[0]?.content?.parts) {
-        const text = geminiData.candidates[0].content.parts
-          .map(p => p.text || '')
-          .join('');
-
+      if (geminiText) {
         return res.status(200).json({
-          content: [{ type: 'text', text }],
+          content: [{ type: 'text', text: geminiText }],
           stop_reason: 'end_turn',
           model: geminiData.modelVersion || 'gemini-2.0-flash',
           _provider: 'gemini',
         });
       }
 
-      // Gemini failed, fall through to OpenAI if available
+      // Gemini failed completely, fall through to OpenAI if available
       if (!openaiKey) {
         return res.status(geminiResponse.status || 500).json({
           error: geminiData.error?.message || 'Gemini API error',
