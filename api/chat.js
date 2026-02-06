@@ -8,10 +8,11 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
   const FETCH_TIMEOUT = 50000; // 50s timeout for upstream API calls
 
-  if (!anthropicKey && !openaiKey) {
+  if (!anthropicKey && !geminiKey && !openaiKey) {
     return res.status(500).json({ error: 'No API keys configured' });
   }
 
@@ -57,21 +58,78 @@ export default async function handler(req, res) {
         (data?.error?.message || '').toLowerCase().includes('quota') ||
         (data?.error?.message || '').toLowerCase().includes('billing');
 
-      if (!shouldFallback || !openaiKey) {
+      if (!shouldFallback || (!geminiKey && !openaiKey)) {
         return res.status(response.status).json(data);
       }
 
-      // Fall through to OpenAI fallback
+      // Fall through to Gemini / OpenAI fallback
+    } catch (error) {
+      if (!geminiKey && !openaiKey) {
+        const msg = error.name === 'AbortError' ? 'Anthropic API timeout' : error.message;
+        return res.status(500).json({ error: msg });
+      }
+      // Fall through to Gemini / OpenAI fallback
+    }
+  }
+
+  // ── Fallback 1: Google Gemini with Google Search grounding ──
+  if (geminiKey) {
+    try {
+      const userMessages = (req.body.messages || []).map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: typeof m.content === 'string'
+          ? m.content
+          : Array.isArray(m.content)
+            ? m.content.map(c => c.text || '').join('\n')
+            : String(m.content) }],
+      }));
+
+      const geminiResponse = await fetchWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: 'Sos un monitor de transporte público argentino. Tu tarea es buscar en la web información ACTUAL sobre paros de colectivos en Buenos Aires y responder SOLO con JSON puro, sin markdown ni texto extra. Es CRÍTICO que la información sea precisa y verificada: NO inventes líneas afectadas ni paros que no existan. Si no encontrás información sobre paros hoy, respondé con hay_paros: false y lineas_afectadas vacío. Siempre indicá la fuente real de cada dato. Preferí fuentes oficiales y verificadas.' }],
+            },
+            contents: userMessages,
+            tools: [{ google_search: {} }],
+          }),
+        }
+      );
+
+      const geminiData = await geminiResponse.json();
+
+      if (geminiResponse.ok && geminiData.candidates?.[0]?.content?.parts) {
+        const text = geminiData.candidates[0].content.parts
+          .map(p => p.text || '')
+          .join('');
+
+        return res.status(200).json({
+          content: [{ type: 'text', text }],
+          stop_reason: 'end_turn',
+          model: geminiData.modelVersion || 'gemini-2.0-flash',
+          _provider: 'gemini',
+        });
+      }
+
+      // Gemini failed, fall through to OpenAI if available
+      if (!openaiKey) {
+        return res.status(geminiResponse.status || 500).json({
+          error: geminiData.error?.message || 'Gemini API error',
+        });
+      }
     } catch (error) {
       if (!openaiKey) {
-        const msg = error.name === 'AbortError' ? 'Anthropic API timeout' : error.message;
+        const msg = error.name === 'AbortError' ? 'Gemini API timeout' : error.message;
         return res.status(500).json({ error: msg });
       }
       // Fall through to OpenAI fallback
     }
   }
 
-  // ── Fallback to OpenAI (ChatGPT) with web search ──
+  // ── Fallback 2: OpenAI (ChatGPT) with web search ──
   if (!openaiKey) {
     return res.status(500).json({ error: 'No fallback API key configured' });
   }

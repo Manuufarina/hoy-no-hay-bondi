@@ -445,10 +445,10 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
                   <span style={{
                     fontSize: 9, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase",
                     padding: "2px 6px", borderRadius: 4,
-                    background: provider === "openai" ? "#10A37F22" : "#D4A27422",
-                    color: provider === "openai" ? "#10A37F" : "#D4A274",
-                    border: `1px solid ${provider === "openai" ? "#10A37F44" : "#D4A27444"}`
-                  }}>{provider === "openai" ? "ChatGPT" : "Claude"}</span>
+                    background: provider === "openai" ? "#10A37F22" : provider === "gemini" ? "#4285F422" : "#D4A27422",
+                    color: provider === "openai" ? "#10A37F" : provider === "gemini" ? "#4285F4" : "#D4A274",
+                    border: `1px solid ${provider === "openai" ? "#10A37F44" : provider === "gemini" ? "#4285F444" : "#D4A27444"}`
+                  }}>{provider === "openai" ? "ChatGPT" : provider === "gemini" ? "Gemini" : "Claude"}</span>
                 )}
               </div>
               {countdown && notificationsEnabled && <span style={{ fontSize: 10, color: "#525252", background: "#1A1A1A", padding: "2px 8px", borderRadius: 4 }}>próx: {countdown}</span>}
@@ -568,13 +568,24 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
           </div>
         )}
 
+        {/* GEMINI FALLBACK NOTICE */}
+        {!loading && provider === "gemini" && (
+          <div style={{ background: "#4285F415", border: "1px solid #4285F444", borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🔄</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#4285F4", fontWeight: 700 }}>Usando Gemini (fallback)</p>
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>Los créditos de Anthropic se agotaron. Datos obtenidos via Google Gemini con búsqueda web.</p>
+            </div>
+          </div>
+        )}
+
         {/* OPENAI FALLBACK NOTICE */}
         {!loading && provider === "openai" && (
           <div style={{ background: "#10A37F15", border: "1px solid #10A37F44", borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 18 }}>🔄</span>
             <div>
               <p style={{ margin: 0, fontSize: 12, color: "#10A37F", fontWeight: 700 }}>Usando ChatGPT (fallback)</p>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>Los créditos de Anthropic se agotaron. Datos obtenidos via ChatGPT con búsqueda web.</p>
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>Los créditos de Anthropic y Gemini se agotaron. Datos obtenidos via ChatGPT con búsqueda web.</p>
             </div>
           </div>
         )}
