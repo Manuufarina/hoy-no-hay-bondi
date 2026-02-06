@@ -9,15 +9,27 @@ export default async function handler(req, res) {
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
+  const FETCH_TIMEOUT = 50000; // 50s timeout for upstream API calls
 
   if (!anthropicKey && !openaiKey) {
     return res.status(500).json({ error: 'No API keys configured' });
   }
 
+  // Helper: fetch with timeout
+  async function fetchWithTimeout(url, options) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   // ── Try Anthropic first ──
   if (anthropicKey) {
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,7 +64,8 @@ export default async function handler(req, res) {
       // Fall through to OpenAI fallback
     } catch (error) {
       if (!openaiKey) {
-        return res.status(500).json({ error: error.message });
+        const msg = error.name === 'AbortError' ? 'Anthropic API timeout' : error.message;
+        return res.status(500).json({ error: msg });
       }
       // Fall through to OpenAI fallback
     }
@@ -64,8 +77,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Build input for OpenAI Responses API
-    const input = (req.body.messages || []).map(m => ({
+    // Build input for OpenAI Responses API with system instruction
+    const userMessages = (req.body.messages || []).map(m => ({
       role: m.role,
       content: typeof m.content === 'string'
         ? m.content
@@ -74,8 +87,16 @@ export default async function handler(req, res) {
           : String(m.content),
     }));
 
+    const input = [
+      {
+        role: 'developer',
+        content: 'Sos un monitor de transporte público argentino. Tu tarea es buscar en la web información ACTUAL sobre paros de colectivos en Buenos Aires y responder SOLO con JSON puro, sin markdown ni texto extra. Es CRÍTICO que la información sea precisa y verificada: NO inventes líneas afectadas ni paros que no existan. Si no encontrás información sobre paros hoy, respondé con hay_paros: false y lineas_afectadas vacío. Siempre indicá la fuente real de cada dato. Preferí fuentes oficiales y verificadas.'
+      },
+      ...userMessages
+    ];
+
     // Use OpenAI Responses API with web search enabled
-    const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
+    const openaiResponse = await fetchWithTimeout('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,7 +114,7 @@ export default async function handler(req, res) {
             region: 'Buenos Aires',
             timezone: 'America/Argentina/Buenos_Aires',
           },
-          search_context_size: 'medium',
+          search_context_size: 'high',
         }],
       }),
     });
@@ -130,6 +151,7 @@ export default async function handler(req, res) {
       _provider: 'openai',
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    const msg = error.name === 'AbortError' ? 'OpenAI API timeout' : error.message;
+    return res.status(500).json({ error: msg });
   }
 }

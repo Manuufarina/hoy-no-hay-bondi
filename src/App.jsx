@@ -92,6 +92,7 @@ function getApiUrl() {
 export default function HoyNoHayBondi() {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [rawSummary, setRawSummary] = useState("");
@@ -172,8 +173,20 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
     setDebugInfo("");
     if (!silent) setRawSummary("");
     setProvider(null);
+    setRetryAttempt(0);
 
+    const MAX_RETRIES = 2;
+    const TIMEOUT_MS = 45000; // 45 seconds timeout per attempt
+    const RETRYABLE_STATUSES = [429, 500, 502, 503, 529];
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      if (attempt > 0) {
+        setRetryAttempt(attempt);
+        const backoffMs = Math.min(2000 * Math.pow(2, attempt - 1), 8000);
+        await new Promise(r => setTimeout(r, backoffMs));
+      }
+
       const apiUrl = getApiUrl();
       const isDirect = apiUrl.startsWith("https://");
       const requestBody = {
@@ -190,27 +203,46 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
 
       let data;
 
-      // Primary request
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(requestBody)
-      });
+      // Primary request with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      let response;
+      try {
+        response = await fetch(apiUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const status = response.status;
         // If credit/rate limit error on direct API, try proxy (which has OpenAI fallback)
         if (isDirect && (status === 429 || status === 529)) {
-          const fallbackResponse = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody)
-          });
+          const fallbackController = new AbortController();
+          const fallbackTimeout = setTimeout(() => fallbackController.abort(), TIMEOUT_MS);
+          let fallbackResponse;
+          try {
+            fallbackResponse = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(requestBody),
+              signal: fallbackController.signal
+            });
+          } finally {
+            clearTimeout(fallbackTimeout);
+          }
           if (!fallbackResponse.ok) {
             const errData = await fallbackResponse.text().catch(() => "");
             throw new Error(`API ${status} (Anthropic) → Fallback ${fallbackResponse.status}: ${errData.substring(0, 300)}`);
           }
           data = await fallbackResponse.json();
+        } else if (RETRYABLE_STATUSES.includes(status) && attempt < MAX_RETRIES) {
+          continue; // Retry on transient errors
         } else {
           const errData = await response.text().catch(() => "");
           throw new Error(`API ${response.status}: ${errData.substring(0, 300)}`);
@@ -316,11 +348,17 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
         setLastUpdate(new Date());
       }
     } catch (err) {
-      setError(err.message);
-      addNotifHistory("❌ " + err.message);
+      const isTimeout = err.name === "AbortError";
+      const isRetryable = isTimeout || /^API (429|500|502|503|529)/.test(err.message);
+      if (isRetryable && attempt < MAX_RETRIES) continue; // Retry on timeout or transient error
+      const msg = isTimeout ? "La consulta tardó demasiado. Intentá de nuevo." : err.message;
+      setError(msg);
+      addNotifHistory("❌ " + msg);
     } finally {
       setLoading(false);
     }
+    break; // Exit retry loop on success
+    } // end retry for-loop
   }, [notificationsEnabled, notifyOnlyFavorites, favoriteLines, sendNotif, addNotifHistory]);
 
   useEffect(() => { checkBusStatus(); }, []);
@@ -402,7 +440,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: loading ? "#FBBF24" : "#22C55E", animation: loading ? "pulse 1s infinite" : "none" }} />
-                <span style={{ fontSize: 11, color: "#A3A3A3" }}>{loading ? "Consultando..." : fmt(lastUpdate)}</span>
+                <span style={{ fontSize: 11, color: "#A3A3A3" }}>{loading ? (retryAttempt > 0 ? `Reintentando (${retryAttempt}/2)...` : "Consultando...") : fmt(lastUpdate)}</span>
                 {provider && (
                   <span style={{
                     fontSize: 9, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase",
@@ -510,8 +548,11 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
         {/* LOADING */}
         {loading && (
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <div style={{ width: 64, height: 64, margin: "0 auto 20px", border: "4px solid #333", borderTop: "4px solid #FBBF24", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-            <p style={{ color: "#FBBF24", fontSize: 14, letterSpacing: 2 }}>CONSULTANDO FUENTES...</p>
+            <div style={{ width: 64, height: 64, margin: "0 auto 20px", border: "4px solid #333", borderTop: `4px solid ${retryAttempt > 0 ? "#D97706" : "#FBBF24"}`, borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+            <p style={{ color: retryAttempt > 0 ? "#D97706" : "#FBBF24", fontSize: 14, letterSpacing: 2 }}>
+              {retryAttempt > 0 ? `REINTENTANDO (${retryAttempt}/2)...` : "CONSULTANDO FUENTES..."}
+            </p>
+            {retryAttempt > 0 && <p style={{ color: "#666", fontSize: 11, margin: "4px 0 12px" }}>La consulta anterior falló, reintentando automáticamente</p>}
             <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 16 }}>
               {PRIORITY_SOURCES.slice(0, 6).map((s, i) => <span key={i} style={{ fontSize: 11, color: "#525252", background: "#141414", padding: "3px 8px", borderRadius: 4, animation: `fadeInOut 2s ${i * 0.3}s infinite` }}>{s.icon} {s.name}</span>)}
             </div>
