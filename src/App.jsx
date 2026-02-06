@@ -34,7 +34,7 @@ const REFRESH_OPTIONS = [
 const PRIORITY_SOURCES = [
   { name: "TN", domain: "tn.com.ar", icon: "📺", principal: true },
   { name: "Ciudad de Bondis", domain: "x.com/CiudadDeBondis", icon: "𝕏", principal: true },
-  { name: "Paro de Bondis", domain: "parodebondis.com.ar", icon: "🚌", principal: false },
+  { name: "Paro de Bondis", domain: "parodebondis.com.ar", icon: "🚌", principal: true },
   { name: "La Nación", domain: "lanacion.com.ar", icon: "📰", principal: false },
   { name: "Infobae", domain: "infobae.com", icon: "📰", principal: false },
   { name: "Canal 26", domain: "canal26.com", icon: "📺", principal: false },
@@ -148,10 +148,12 @@ export default function HoyNoHayBondi() {
     const dateStr = today.toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
     return `Hoy es ${dateStr}. Necesito información ACTUALIZADA AL DÍA DE HOY sobre paros, demoras, interrupciones y LEVANTAMIENTOS de paros de colectivos en el AMBA, con foco en zona norte del conurbano y CABA zona norte.
 
-FUENTES A CONSULTAR:
-1. tn.com.ar (buscar "paro colectivos hoy")
-2. @CiudadDeBondis en X/Twitter (88.8k seguidores, referente info colectivos)
-3. parodebondis.com.ar
+FUENTES OBLIGATORIAS (consultar SIEMPRE):
+1. parodebondis.com.ar (fuente especializada en paros de colectivos, PRIORIDAD MÁXIMA)
+2. tn.com.ar (buscar "paro colectivos hoy")
+3. @CiudadDeBondis en X/Twitter (88.8k seguidores, referente info colectivos)
+
+FUENTES COMPLEMENTARIAS:
 4. lanacion.com.ar / infobae.com / canal26.com / c5n.com / infocielo.com
 
 ZONAS: San Isidro, Vicente López, San Fernando, Tigre, San Martín, Tres de Febrero, Pilar, Escobar, y CABA zona norte (Belgrano, Núñez, Saavedra, Coghlan).
@@ -769,7 +771,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
         {/* FOOTER */}
         <footer style={{ padding: "24px 0 32px", marginTop: 24, borderTop: "1px solid #1A1A1A", textAlign: "center" }}>
           <p style={{ fontSize: 10, color: "#404040", margin: 0 }}>HOY NO HAY BONDI · Datos de fuentes públicas · No oficial</p>
-          <p style={{ fontSize: 10, color: "#333", margin: "4px 0 0" }}>Fuentes: TN · @CiudadDeBondis · parodebondis.com.ar</p>
+          <p style={{ fontSize: 10, color: "#333", margin: "4px 0 0" }}>Fuentes: parodebondis.com.ar · TN · @CiudadDeBondis</p>
           <p style={{ fontSize: 11, color: "#FBBF24", margin: "16px 0 0", letterSpacing: 1, fontWeight: 600 }}>Diseñado por Manuel Gonzalo Fariña Serra</p>
         </footer>
       </div>
