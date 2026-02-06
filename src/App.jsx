@@ -112,6 +112,7 @@ export default function HoyNoHayBondi() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showSources, setShowSources] = useState(false);
+  const [provider, setProvider] = useState(null); // 'anthropic' | 'openai'
 
   const requestNotifPermission = useCallback(async () => {
     if (!("Notification" in window)) { addNotifHistory("⚠️ Navegador no soporta notificaciones"); return; }
@@ -170,6 +171,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
     setError(null);
     setDebugInfo("");
     if (!silent) setRawSummary("");
+    setProvider(null);
 
     try {
       const apiUrl = getApiUrl();
@@ -184,9 +186,11 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
       const headers = { "Content-Type": "application/json" };
       if (isDirect) {
         headers["anthropic-version"] = "2023-06-01";
-        // In Claude.ai artifacts, the API key is handled automatically
       }
 
+      let data;
+
+      // Primary request
       const response = await fetch(apiUrl, {
         method: "POST",
         headers,
@@ -194,11 +198,29 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
       });
 
       if (!response.ok) {
-        const errData = await response.text().catch(() => "");
-        throw new Error(`API ${response.status}: ${errData.substring(0, 300)}`);
+        const status = response.status;
+        // If credit/rate limit error on direct API, try proxy (which has OpenAI fallback)
+        if (isDirect && (status === 429 || status === 529)) {
+          const fallbackResponse = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody)
+          });
+          if (!fallbackResponse.ok) {
+            const errData = await fallbackResponse.text().catch(() => "");
+            throw new Error(`API ${status} (Anthropic) → Fallback ${fallbackResponse.status}: ${errData.substring(0, 300)}`);
+          }
+          data = await fallbackResponse.json();
+        } else {
+          const errData = await response.text().catch(() => "");
+          throw new Error(`API ${response.status}: ${errData.substring(0, 300)}`);
+        }
+      } else {
+        data = await response.json();
       }
 
-      const data = await response.json();
+      // Track which provider answered
+      if (data._provider) setProvider(data._provider);
 
       // Extract text from response (handles mixed content with web_search blocks)
       const fullText = extractTextFromResponse(data);
@@ -381,6 +403,15 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: loading ? "#FBBF24" : "#22C55E", animation: loading ? "pulse 1s infinite" : "none" }} />
                 <span style={{ fontSize: 11, color: "#A3A3A3" }}>{loading ? "Consultando..." : fmt(lastUpdate)}</span>
+                {provider && (
+                  <span style={{
+                    fontSize: 9, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase",
+                    padding: "2px 6px", borderRadius: 4,
+                    background: provider === "openai" ? "#10A37F22" : "#D4A27422",
+                    color: provider === "openai" ? "#10A37F" : "#D4A274",
+                    border: `1px solid ${provider === "openai" ? "#10A37F44" : "#D4A27444"}`
+                  }}>{provider === "openai" ? "ChatGPT" : "Claude"}</span>
+                )}
               </div>
               {countdown && notificationsEnabled && <span style={{ fontSize: 10, color: "#525252", background: "#1A1A1A", padding: "2px 8px", borderRadius: 4 }}>próx: {countdown}</span>}
             </div>
@@ -493,6 +524,17 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
             <p style={{ color: "#FCA5A5", margin: 0, fontSize: 14 }}>⚠️ {error}</p>
             <button onClick={() => checkBusStatus()} style={{ marginTop: 12, background: "#DC2626", color: "#fff", border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: 12 }}>🔄 Reintentar</button>
             {debugInfo && <p style={{ marginTop: 10, fontSize: 10, color: "#888" }}>Debug: {debugInfo}</p>}
+          </div>
+        )}
+
+        {/* OPENAI FALLBACK NOTICE */}
+        {!loading && provider === "openai" && (
+          <div style={{ background: "#10A37F15", border: "1px solid #10A37F44", borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🔄</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#10A37F", fontWeight: 700 }}>Usando ChatGPT (fallback)</p>
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>Los créditos de Anthropic se agotaron. Los datos pueden ser menos precisos sin búsqueda web en tiempo real.</p>
+            </div>
           </div>
         )}
 
