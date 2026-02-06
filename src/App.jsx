@@ -113,6 +113,7 @@ export default function HoyNoHayBondi() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [provider, setProvider] = useState(null); // 'anthropic' | 'openai'
+  const [sourcesFetched, setSourcesFetched] = useState([]);
 
   const requestNotifPermission = useCallback(async () => {
     if (!("Notification" in window)) { addNotifHistory("⚠️ Navegador no soporta notificaciones"); return; }
@@ -221,6 +222,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
 
       // Track which provider answered
       if (data._provider) setProvider(data._provider);
+      if (data._sources_fetched) setSourcesFetched(data._sources_fetched);
 
       // Extract text from response (handles mixed content with web_search blocks)
       const fullText = extractTextFromResponse(data);
@@ -533,7 +535,10 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
             <span style={{ fontSize: 18 }}>🔄</span>
             <div>
               <p style={{ margin: 0, fontSize: 12, color: "#10A37F", fontWeight: 700 }}>Usando ChatGPT (fallback)</p>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>Los créditos de Anthropic se agotaron. Datos obtenidos via ChatGPT con búsqueda web.</p>
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>
+                Los créditos de Anthropic se agotaron. Datos obtenidos via ChatGPT.
+                {sourcesFetched.length > 0 && <span> Fuentes descargadas: {sourcesFetched.join(", ")}</span>}
+              </p>
             </div>
           </div>
         )}
