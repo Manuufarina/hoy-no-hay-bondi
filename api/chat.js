@@ -65,14 +65,31 @@ export default async function handler(req, res) {
 
   try {
     // Build input for OpenAI Responses API
-    const input = (req.body.messages || []).map(m => ({
-      role: m.role,
-      content: typeof m.content === 'string'
+    // Add a system message to force web search usage
+    const userContent = (req.body.messages || []).map(m =>
+      typeof m.content === 'string'
         ? m.content
         : Array.isArray(m.content)
           ? m.content.map(c => c.text || '').join('\n')
-          : String(m.content),
-    }));
+          : String(m.content)
+    ).join('\n');
+
+    const input = [
+      {
+        role: 'system',
+        content: `Sos un asistente que monitorea paros de colectivos en Buenos Aires, Argentina.
+REGLAS OBLIGATORIAS:
+- SIEMPRE usá búsqueda web antes de responder. NUNCA respondas de memoria.
+- Buscá ESPECÍFICAMENTE en: parodebondis.com.ar, tn.com.ar, infobae.com, lanacion.com.ar
+- Hacé MÚLTIPLES búsquedas: "paro colectivos hoy buenos aires", "paro bondi hoy", "parodebondis.com.ar"
+- Si encontrás paros, reportalos TODOS. No digas "no hay paros" si no buscaste primero.
+- Respondé SOLO con JSON puro, sin markdown, sin backticks, sin texto extra.`
+      },
+      {
+        role: 'user',
+        content: userContent,
+      }
+    ];
 
     // Use OpenAI Responses API with web search enabled
     const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
@@ -93,7 +110,7 @@ export default async function handler(req, res) {
             region: 'Buenos Aires',
             timezone: 'America/Argentina/Buenos_Aires',
           },
-          search_context_size: 'medium',
+          search_context_size: 'high',
         }],
       }),
     });
