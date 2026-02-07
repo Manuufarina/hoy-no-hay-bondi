@@ -161,8 +161,12 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-5.2',
         input,
+        reasoning: {
+          effort: 'high',
+          summary: 'auto',
+        },
         tools: [{
           type: 'web_search_preview',
           user_location: {
@@ -205,7 +209,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       content: [{ type: 'text', text }],
       stop_reason: 'end_turn',
-      model: openaiData.model || 'gpt-4o',
+      model: openaiData.model || 'gpt-5.2',
       _provider: 'openai',
     });
   } catch (error) {
