@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
-  const FETCH_TIMEOUT = 90000; // 90s timeout for upstream API calls (thinking models need more time)
+  const FETCH_TIMEOUT = 55000; // 55s timeout for upstream API calls
 
   if (!anthropicKey && !geminiKey && !openaiKey) {
     return res.status(500).json({ error: 'No API keys configured' });
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
       }));
 
       const geminiResponse = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${geminiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -95,11 +95,6 @@ export default async function handler(req, res) {
             },
             contents: userMessages,
             tools: [{ google_search: {} }],
-            generationConfig: {
-              thinkingConfig: {
-                thinkingLevel: 'high',
-              },
-            },
           }),
         }
       );
@@ -114,7 +109,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           content: [{ type: 'text', text }],
           stop_reason: 'end_turn',
-          model: geminiData.modelVersion || 'gemini-3-pro-preview',
+          model: geminiData.modelVersion || 'gemini-3-flash-preview',
           _provider: 'gemini',
         });
       }
@@ -166,12 +161,8 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-5.2',
+        model: 'gpt-5.2-chat-latest',
         input,
-        reasoning: {
-          effort: 'high',
-          summary: 'auto',
-        },
         tools: [{
           type: 'web_search_preview',
           user_location: {
@@ -214,7 +205,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       content: [{ type: 'text', text }],
       stop_reason: 'end_turn',
-      model: openaiData.model || 'gpt-5.2',
+      model: openaiData.model || 'gpt-5.2-chat-latest',
       _provider: 'openai',
     });
   } catch (error) {

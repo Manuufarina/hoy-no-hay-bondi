@@ -176,7 +176,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
     setRetryAttempt(0);
 
     const MAX_RETRIES = 2;
-    const TIMEOUT_MS = 80000; // 80 seconds timeout per attempt (thinking models need more time)
+    const TIMEOUT_MS = 50000; // 50 seconds timeout per attempt
     const RETRYABLE_STATUSES = [429, 500, 502, 503, 529];
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
