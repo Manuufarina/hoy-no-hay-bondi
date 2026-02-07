@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
-  const FETCH_TIMEOUT = 50000; // 50s timeout for upstream API calls
+  const FETCH_TIMEOUT = 90000; // 90s timeout for upstream API calls (thinking models need more time)
 
   if (!anthropicKey && !geminiKey && !openaiKey) {
     return res.status(500).json({ error: 'No API keys configured' });
