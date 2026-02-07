@@ -85,7 +85,7 @@ export default async function handler(req, res) {
       }));
 
       const geminiResponse = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${geminiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -95,6 +95,11 @@ export default async function handler(req, res) {
             },
             contents: userMessages,
             tools: [{ google_search: {} }],
+            generationConfig: {
+              thinkingConfig: {
+                thinkingLevel: 'high',
+              },
+            },
           }),
         }
       );
@@ -109,7 +114,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           content: [{ type: 'text', text }],
           stop_reason: 'end_turn',
-          model: geminiData.modelVersion || 'gemini-2.0-flash',
+          model: geminiData.modelVersion || 'gemini-3-pro-preview',
           _provider: 'gemini',
         });
       }
