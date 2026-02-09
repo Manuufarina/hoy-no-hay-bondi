@@ -68,6 +68,12 @@ function extractJSON(text) {
   return null;
 }
 
+// ── Strip citation tags from API responses ──
+function stripCitations(text) {
+  if (!text || typeof text !== "string") return text;
+  return text.replace(/<\/?cite[^>]*>/gi, "");
+}
+
 // ── Extract text from API response (handles web_search tool blocks) ──
 function extractTextFromResponse(data) {
   if (!data || !data.content) return "";
@@ -288,6 +294,12 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
       }
 
       if (parsed && (parsed.lineas_afectadas || parsed.fecha)) {
+        // Strip <cite> tags from text fields
+        if (parsed.resumen_general) parsed.resumen_general = stripCitations(parsed.resumen_general);
+        if (parsed.nota) parsed.nota = stripCitations(parsed.nota);
+        if (parsed.lineas_afectadas) parsed.lineas_afectadas.forEach(l => { if (l.motivo) l.motivo = stripCitations(l.motivo); if (l.detalle) l.detalle = stripCitations(l.detalle); });
+        if (parsed.paros_levantados) parsed.paros_levantados.forEach(l => { if (l.detalle) l.detalle = stripCitations(l.detalle); });
+        if (parsed.info_general) parsed.info_general = parsed.info_general.map(i => typeof i === "string" ? stripCitations(i) : i);
         setResults(parsed);
         setRawSummary(parsed.resumen_general || "");
         setLastUpdate(new Date());
