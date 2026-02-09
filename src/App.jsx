@@ -166,7 +166,11 @@ LÍNEAS: 15, 19, 21, 28, 29, 33, 34, 37, 39, 41, 42, 44, 55, 57, 59, 60, 63, 64,
 
 EMPRESAS: MOGSM, MOQSA, El Nuevo Halcón, DOTA, y cualquier otra.
 
-IMPORTANTE: Si un paro fue LEVANTADO hoy, reportalo con estado "levantado" e indicá la hora.
+IMPORTANTE:
+- SOLO reportá paros, demoras o medidas de fuerza que estén ACTIVOS O ANUNCIADOS PARA HOY (${dateStr}). NO incluyas paros de días anteriores ni información vieja.
+- Si un paro fue LEVANTADO HOY, reportalo con estado "levantado" e indicá la hora.
+- Si NO hay paros activos hoy, respondé con hay_paros: false y lineas_afectadas vacío. No llenes lineas_afectadas con paros viejos.
+- Solo incluí en paros_levantados los que fueron levantados HOY, no de días anteriores.
 
 RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empezá directo con la llave {
 
