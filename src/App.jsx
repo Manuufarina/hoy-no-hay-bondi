@@ -68,6 +68,12 @@ function extractJSON(text) {
   return null;
 }
 
+// ── Strip citation tags from API responses ──
+function stripCitations(text) {
+  if (!text || typeof text !== "string") return text;
+  return text.replace(/<\/?cite[^>]*>/gi, "");
+}
+
 // ── Extract text from API response (handles web_search tool blocks) ──
 function extractTextFromResponse(data) {
   if (!data || !data.content) return "";
@@ -288,6 +294,12 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
       }
 
       if (parsed && (parsed.lineas_afectadas || parsed.fecha)) {
+        // Strip <cite> tags from text fields
+        if (parsed.resumen_general) parsed.resumen_general = stripCitations(parsed.resumen_general);
+        if (parsed.nota) parsed.nota = stripCitations(parsed.nota);
+        if (parsed.lineas_afectadas) parsed.lineas_afectadas.forEach(l => { if (l.motivo) l.motivo = stripCitations(l.motivo); if (l.detalle) l.detalle = stripCitations(l.detalle); });
+        if (parsed.paros_levantados) parsed.paros_levantados.forEach(l => { if (l.detalle) l.detalle = stripCitations(l.detalle); });
+        if (parsed.info_general) parsed.info_general = parsed.info_general.map(i => typeof i === "string" ? stripCitations(i) : i);
         setResults(parsed);
         setRawSummary(parsed.resumen_general || "");
         setLastUpdate(new Date());
@@ -602,7 +614,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
               <div style={{ position: "absolute", top: -20, right: -20, fontSize: 100, opacity: 0.08 }}>{results.hay_paros ? "🚫" : "✅"}</div>
               <div style={{ fontSize: 36, marginBottom: 8 }}>{results.hay_paros ? "🚫" : "✅"}</div>
               <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: results.hay_paros ? "#FCA5A5" : "#86EFAC", textTransform: "uppercase", letterSpacing: 2 }}>
-                {results.hay_paros ? `${affectedCount} línea${affectedCount !== 1 ? "s" : ""} afectada${affectedCount !== 1 ? "s" : ""}` : "Sin paros reportados"}
+                {results.hay_paros ? `${affectedCount} línea${affectedCount !== 1 ? "s" : ""} afectada${affectedCount !== 1 ? "s" : ""}` : liftedCount > 0 ? "Sin paros activos" : "Sin paros reportados"}
               </h2>
               {liftedCount > 0 && <p style={{ margin: "8px 0 0", fontSize: 14, color: "#C4B5FD", fontWeight: 700 }}>🟢 {liftedCount} paro{liftedCount > 1 ? "s" : ""} levantado{liftedCount > 1 ? "s" : ""}</p>}
               <p style={{ margin: "10px 0 0", fontSize: 14, color: "#D4D4D4", lineHeight: 1.6, maxWidth: 600 }}>{results.resumen_general}</p>
