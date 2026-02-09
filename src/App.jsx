@@ -602,7 +602,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
               <div style={{ position: "absolute", top: -20, right: -20, fontSize: 100, opacity: 0.08 }}>{results.hay_paros ? "🚫" : "✅"}</div>
               <div style={{ fontSize: 36, marginBottom: 8 }}>{results.hay_paros ? "🚫" : "✅"}</div>
               <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: results.hay_paros ? "#FCA5A5" : "#86EFAC", textTransform: "uppercase", letterSpacing: 2 }}>
-                {results.hay_paros ? `${affectedCount} línea${affectedCount !== 1 ? "s" : ""} afectada${affectedCount !== 1 ? "s" : ""}` : "Sin paros reportados"}
+                {results.hay_paros ? `${affectedCount} línea${affectedCount !== 1 ? "s" : ""} afectada${affectedCount !== 1 ? "s" : ""}` : liftedCount > 0 ? "Sin paros activos" : "Sin paros reportados"}
               </h2>
               {liftedCount > 0 && <p style={{ margin: "8px 0 0", fontSize: 14, color: "#C4B5FD", fontWeight: 700 }}>🟢 {liftedCount} paro{liftedCount > 1 ? "s" : ""} levantado{liftedCount > 1 ? "s" : ""}</p>}
               <p style={{ margin: "10px 0 0", fontSize: 14, color: "#D4D4D4", lineHeight: 1.6, maxWidth: 600 }}>{results.resumen_general}</p>
