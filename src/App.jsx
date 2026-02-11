@@ -32,16 +32,16 @@ const REFRESH_OPTIONS = [
 ];
 
 const PRIORITY_SOURCES = [
-  { name: "TN", domain: "tn.com.ar", icon: "📺", principal: true },
   { name: "Ciudad de Bondis", domain: "x.com/CiudadDeBondis", icon: "𝕏", principal: true },
-  { name: "Paro de Bondis", domain: "parodebondis.com.ar", icon: "🚌", principal: false },
-  { name: "La Nación", domain: "lanacion.com.ar", icon: "📰", principal: false },
-  { name: "Infobae", domain: "infobae.com", icon: "📰", principal: false },
-  { name: "Canal 26", domain: "canal26.com", icon: "📺", principal: false },
-  { name: "C5N", domain: "c5n.com", icon: "📺", principal: false },
-  { name: "Infocielo", domain: "infocielo.com", icon: "📰", principal: false },
-  { name: "Alertas Tránsito", domain: "alertastransito.com", icon: "🚦", principal: false },
-  { name: "Página/12", domain: "pagina12.com.ar", icon: "📰", principal: false },
+  { name: "Paro de Bondis", domain: "parodebondis.com.ar", icon: "🚌", principal: true },
+  { name: "TN", domain: "tn.com.ar", icon: "📺", principal: true },
+  { name: "La Nación", domain: "lanacion.com.ar", icon: "📰", principal: true },
+  { name: "Infobae", domain: "infobae.com", icon: "📰", principal: true },
+  { name: "Canal 26", domain: "canal26.com", icon: "📺", principal: true },
+  { name: "C5N", domain: "c5n.com", icon: "📺", principal: true },
+  { name: "Infocielo", domain: "infocielo.com", icon: "📰", principal: true },
+  { name: "Alertas Tránsito", domain: "alertastransito.com", icon: "🚦", principal: true },
+  { name: "Página/12", domain: "pagina12.com.ar", icon: "📰", principal: true },
 ];
 
 // ── Robust JSON extractor ──
@@ -154,11 +154,19 @@ export default function HoyNoHayBondi() {
     const dateStr = today.toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
     return `Hoy es ${dateStr}. Necesito información ACTUALIZADA AL DÍA DE HOY sobre paros, demoras, interrupciones y LEVANTAMIENTOS de paros de colectivos en el AMBA, con foco en zona norte del conurbano y CABA zona norte.
 
-FUENTES A CONSULTAR:
-1. tn.com.ar (buscar "paro colectivos hoy")
-2. @CiudadDeBondis en X/Twitter (88.8k seguidores, referente info colectivos)
-3. parodebondis.com.ar
-4. lanacion.com.ar / infobae.com / canal26.com / c5n.com / infocielo.com
+FUENTES A CONSULTAR (TODAS obligatorias, en este orden de prioridad):
+1. @CiudadDeBondis en X/Twitter (x.com/CiudadDeBondis) — referente principal de info de colectivos, 88.8k seguidores
+2. parodebondis.com.ar — sitio especializado en paros de colectivos
+3. tn.com.ar (buscar "paro colectivos hoy")
+4. lanacion.com.ar (buscar "paro colectivos")
+5. infobae.com (buscar "paro colectivos")
+6. canal26.com (buscar "paro colectivos")
+7. c5n.com (buscar "paro colectivos")
+8. infocielo.com (buscar "paro colectivos")
+9. alertastransito.com
+10. pagina12.com.ar (buscar "paro colectivos")
+
+IMPORTANTE: Consultá TODAS las fuentes, no solo algunas. Empezá siempre por @CiudadDeBondis y parodebondis.com.ar.
 
 ZONAS: San Isidro, Vicente López, San Fernando, Tigre, San Martín, Tres de Febrero, Pilar, Escobar, y CABA zona norte (Belgrano, Núñez, Saavedra, Coghlan).
 
@@ -792,7 +800,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
         {/* FOOTER */}
         <footer style={{ padding: "24px 0 32px", marginTop: 24, borderTop: "1px solid #1A1A1A", textAlign: "center" }}>
           <p style={{ fontSize: 10, color: "#404040", margin: 0 }}>HOY NO HAY BONDI · Datos de fuentes públicas · No oficial</p>
-          <p style={{ fontSize: 10, color: "#333", margin: "4px 0 0" }}>Fuentes: TN · @CiudadDeBondis · parodebondis.com.ar</p>
+          <p style={{ fontSize: 10, color: "#333", margin: "4px 0 0" }}>Fuentes: @CiudadDeBondis · parodebondis.com.ar · TN · La Nación · Infobae · Canal 26 · C5N · Infocielo · Alertas Tránsito · Página/12</p>
           <p style={{ fontSize: 11, color: "#FBBF24", margin: "16px 0 0", letterSpacing: 1, fontWeight: 600 }}>Diseñado por Manuel Gonzalo Fariña Serra</p>
         </footer>
       </div>
