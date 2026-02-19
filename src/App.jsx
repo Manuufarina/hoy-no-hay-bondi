@@ -32,9 +32,9 @@ const REFRESH_OPTIONS = [
 ];
 
 const PRIORITY_SOURCES = [
+  { name: "Paro de Bondis", domain: "parodebondis.com.ar", icon: "🚌", principal: true },
   { name: "TN", domain: "tn.com.ar", icon: "📺", principal: true },
   { name: "Ciudad de Bondis", domain: "x.com/CiudadDeBondis", icon: "𝕏", principal: true },
-  { name: "Paro de Bondis", domain: "parodebondis.com.ar", icon: "🚌", principal: false },
   { name: "La Nación", domain: "lanacion.com.ar", icon: "📰", principal: false },
   { name: "Infobae", domain: "infobae.com", icon: "📰", principal: false },
   { name: "Canal 26", domain: "canal26.com", icon: "📺", principal: false },
@@ -154,10 +154,12 @@ export default function HoyNoHayBondi() {
     const dateStr = today.toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
     return `Hoy es ${dateStr}. Necesito información ACTUALIZADA AL DÍA DE HOY sobre paros, demoras, interrupciones y LEVANTAMIENTOS de paros de colectivos en el AMBA, con foco en zona norte del conurbano y CABA zona norte.
 
-FUENTES A CONSULTAR:
-1. tn.com.ar (buscar "paro colectivos hoy")
-2. @CiudadDeBondis en X/Twitter (88.8k seguidores, referente info colectivos)
-3. parodebondis.com.ar
+FUENTE PRINCIPAL OBLIGATORIA:
+1. parodebondis.com.ar — SIEMPRE consultá esta página PRIMERO. Detalla línea por línea si hay paro o no, y es la fuente más completa y actualizada. Buscá "parodebondis.com.ar" y extraé el estado de CADA línea que figure ahí. Si una línea aparece en esta fuente como afectada, incluila. Si dice que funciona normal, reportala como normal.
+
+FUENTES COMPLEMENTARIAS (para cruzar y ampliar datos):
+2. tn.com.ar (buscar "paro colectivos hoy")
+3. @CiudadDeBondis en X/Twitter (88.8k seguidores, referente info colectivos)
 4. lanacion.com.ar / infobae.com / canal26.com / c5n.com / infocielo.com
 
 ZONAS: San Isidro, Vicente López, San Fernando, Tigre, San Martín, Tres de Febrero, Pilar, Escobar, y CABA zona norte (Belgrano, Núñez, Saavedra, Coghlan).
@@ -189,6 +191,8 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
     try {
       if (attempt > 0) {
         setRetryAttempt(attempt);
+        // Keep loading=true during retries so the spinner stays visible
+        setLoading(true);
         const backoffMs = Math.min(2000 * Math.pow(2, attempt - 1), 8000);
         await new Promise(r => setTimeout(r, backoffMs));
       }
@@ -366,11 +370,10 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
       const msg = isTimeout ? "La consulta tardó demasiado. Intentá de nuevo." : err.message;
       setError(msg);
       addNotifHistory("❌ " + msg);
-    } finally {
-      setLoading(false);
     }
     break; // Exit retry loop on success
     } // end retry for-loop
+    setLoading(false);
   }, [notificationsEnabled, notifyOnlyFavorites, favoriteLines, sendNotif, addNotifHistory]);
 
   useEffect(() => { checkBusStatus(); }, []);
@@ -557,8 +560,8 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
           </div>
         )}
 
-        {/* LOADING */}
-        {loading && (
+        {/* LOADING - show compact bar if we already have results, full spinner only on first load */}
+        {loading && !results && (
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
             <div style={{ width: 64, height: 64, margin: "0 auto 20px", border: "4px solid #333", borderTop: `4px solid ${retryAttempt > 0 ? "#D97706" : "#FBBF24"}`, borderRadius: "50%", animation: "spin 1s linear infinite" }} />
             <p style={{ color: retryAttempt > 0 ? "#D97706" : "#FBBF24", fontSize: 14, letterSpacing: 2 }}>
@@ -568,6 +571,14 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
             <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 16 }}>
               {PRIORITY_SOURCES.slice(0, 6).map((s, i) => <span key={i} style={{ fontSize: 11, color: "#525252", background: "#141414", padding: "3px 8px", borderRadius: 4, animation: `fadeInOut 2s ${i * 0.3}s infinite` }}>{s.icon} {s.name}</span>)}
             </div>
+          </div>
+        )}
+        {loading && results && (
+          <div style={{ background: "#141414", border: "1px solid #FBBF2433", borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 20, height: 20, border: "3px solid #333", borderTop: `3px solid ${retryAttempt > 0 ? "#D97706" : "#FBBF24"}`, borderRadius: "50%", animation: "spin 1s linear infinite", flexShrink: 0 }} />
+            <span style={{ color: retryAttempt > 0 ? "#D97706" : "#FBBF24", fontSize: 12, letterSpacing: 1 }}>
+              {retryAttempt > 0 ? `REINTENTANDO (${retryAttempt}/2)...` : "ACTUALIZANDO..."}
+            </span>
           </div>
         )}
 
@@ -581,7 +592,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
         )}
 
         {/* GEMINI FALLBACK NOTICE */}
-        {!loading && provider === "gemini" && (
+        {provider === "gemini" && (
           <div style={{ background: "#4285F415", border: "1px solid #4285F444", borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 18 }}>🔄</span>
             <div>
@@ -592,7 +603,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
         )}
 
         {/* OPENAI FALLBACK NOTICE */}
-        {!loading && provider === "openai" && (
+        {provider === "openai" && (
           <div style={{ background: "#10A37F15", border: "1px solid #10A37F44", borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 18 }}>🔄</span>
             <div>
@@ -602,8 +613,8 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
           </div>
         )}
 
-        {/* RESULTS */}
-        {!loading && results && (
+        {/* RESULTS - show even while loading so previous data stays visible */}
+        {results && (
           <>
             {/* BANNER */}
             <div style={{
@@ -763,7 +774,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
         )}
 
         {/* FALLBACK */}
-        {!loading && !results && rawSummary && (
+        {!results && rawSummary && !loading && (
           <div style={{ background: "#141414", border: "1px solid #333", borderRadius: 8, padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
               <span style={{ fontSize: 24 }}>⚠️</span>
@@ -792,7 +803,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
         {/* FOOTER */}
         <footer style={{ padding: "24px 0 32px", marginTop: 24, borderTop: "1px solid #1A1A1A", textAlign: "center" }}>
           <p style={{ fontSize: 10, color: "#404040", margin: 0 }}>HOY NO HAY BONDI · Datos de fuentes públicas · No oficial</p>
-          <p style={{ fontSize: 10, color: "#333", margin: "4px 0 0" }}>Fuentes: TN · @CiudadDeBondis · parodebondis.com.ar</p>
+          <p style={{ fontSize: 10, color: "#333", margin: "4px 0 0" }}>Fuentes: parodebondis.com.ar · TN · @CiudadDeBondis</p>
           <p style={{ fontSize: 11, color: "#FBBF24", margin: "16px 0 0", letterSpacing: 1, fontWeight: 600 }}>Diseñado por Manuel Gonzalo Fariña Serra</p>
         </footer>
       </div>
