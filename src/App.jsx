@@ -155,7 +155,7 @@ export default function HoyNoHayBondi() {
     return `Hoy es ${dateStr}. Necesito información ACTUALIZADA AL DÍA DE HOY sobre paros, demoras, interrupciones y LEVANTAMIENTOS de paros de colectivos en el AMBA, con foco en zona norte del conurbano y CABA zona norte.
 
 FUENTE PRINCIPAL OBLIGATORIA:
-1. parodebondis.com.ar — SIEMPRE consultá esta página PRIMERO. Detalla línea por línea si hay paro o no, y es la fuente más completa y actualizada. Buscá "parodebondis.com.ar" y extraé el estado de CADA línea que figure ahí. Si una línea aparece en esta fuente como afectada, incluila. Si dice que funciona normal, reportala como normal.
+1. parodebondis.com.ar — Buscá "parodebondis.com.ar" y SIEMPRE consultá esta página PRIMERO. Es la fuente más completa porque detalla LÍNEA POR LÍNEA si hay paro o no. Extraé el estado de CADA línea individual que figure ahí.
 
 FUENTES COMPLEMENTARIAS (para cruzar y ampliar datos):
 2. tn.com.ar (buscar "paro colectivos hoy")
@@ -164,15 +164,21 @@ FUENTES COMPLEMENTARIAS (para cruzar y ampliar datos):
 
 ZONAS: San Isidro, Vicente López, San Fernando, Tigre, San Martín, Tres de Febrero, Pilar, Escobar, y CABA zona norte (Belgrano, Núñez, Saavedra, Coghlan).
 
-LÍNEAS: 15, 19, 21, 28, 29, 33, 34, 37, 39, 41, 42, 44, 55, 57, 59, 60, 63, 64, 65, 67, 68, 71, 78, 80, 87, 93, 107, 113, 114, 118, 127, 130, 134, 140, 142, 148, 152, 159, 160, 161, 166, 168, 169, 175, 176, 184, 194, 203, 219, 228, 263, 300, 333, 365, 371, 372, 407, 430, 437, 502, 584, 603, 619, 700, 707, 710, 720, 721, 723, 740, 842.
+LÍNEAS A MONITOREAR: 15, 19, 21, 28, 29, 33, 34, 37, 39, 41, 42, 44, 55, 57, 59, 60, 63, 64, 65, 67, 68, 71, 78, 80, 87, 93, 107, 113, 114, 118, 127, 130, 134, 140, 142, 148, 152, 159, 160, 161, 166, 168, 169, 175, 176, 184, 194, 203, 219, 228, 263, 300, 333, 365, 371, 372, 407, 430, 437, 502, 584, 603, 619, 700, 707, 710, 720, 721, 723, 740, 842.
 
 EMPRESAS: MOGSM, MOQSA, El Nuevo Halcón, DOTA, y cualquier otra.
 
-IMPORTANTE: Si un paro fue LEVANTADO hoy, reportalo con estado "levantado" e indicá la hora.
+REGLAS CRÍTICAS — LEELAS TODAS ANTES DE RESPONDER:
+1. PROHIBIDO GENERALIZAR: NUNCA digas "todas las líneas", "varias líneas", "algunas líneas" o "las líneas de la empresa X". Tenés que listar CADA línea afectada como un objeto individual en lineas_afectadas con su número específico.
+2. UNA ENTRADA POR LÍNEA: Cada línea debe tener su propia entrada en el array lineas_afectadas con su número en el campo "linea". Si hay 20 líneas en paro, tiene que haber 20 objetos en el array, uno por cada línea.
+3. NO INVENTAR: Si no encontrás información concreta de paros hoy, respondé con hay_paros: false y lineas_afectadas: []. Es preferible reportar menos líneas que inventar.
+4. VERIFICAR CON MÚLTIPLES FUENTES: Si parodebondis.com.ar dice que hay paro pero no encontrás confirmación en ninguna otra fuente, incluí la línea pero poné confiabilidad "media".
+5. Si un paro fue LEVANTADO hoy, reportalo con estado "levantado" e indicá la hora.
+6. El campo "fuente" de cada línea debe indicar de dónde sacaste el dato (ej: "parodebondis.com.ar", "tn.com.ar").
 
 RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empezá directo con la llave {
 
-{"fecha":"${dateStr}","hay_paros":true,"resumen_general":"texto","lineas_afectadas":[{"linea":"número","empresa":"nombre","estado":"paro_total|paro_parcial|demoras|levantado|normal","motivo":"razón","desde":"hora","hasta":"hora o sin definir","zonas":["zona"],"fuente":"medio"}],"paros_levantados":[{"linea":"número","empresa":"nombre","hora_levantamiento":"hora","detalle":"qué pasó","servicio_normalizado":true,"fuente":"medio"}],"proximas_medidas":[{"fecha":"fecha","tipo":"paro|movilización","convocante":"quién","detalle":"qué","fuente":"medio"}],"info_general":[{"titulo":"título","detalle":"detalle","fuente":"medio","url":"url"}],"fuentes_consultadas":["fuente1"],"confiabilidad":"alta|media|baja","nota":"aclaración"}`;
+{"fecha":"${dateStr}","hay_paros":true,"resumen_general":"texto","lineas_afectadas":[{"linea":"60","empresa":"nombre","estado":"paro_total|paro_parcial|demoras|levantado|normal","motivo":"razón","desde":"hora","hasta":"hora o sin definir","zonas":["zona"],"fuente":"parodebondis.com.ar"},{"linea":"134","empresa":"nombre","estado":"paro_total","motivo":"razón","desde":"hora","hasta":"hora","zonas":["zona"],"fuente":"fuente"}],"paros_levantados":[{"linea":"número","empresa":"nombre","hora_levantamiento":"hora","detalle":"qué pasó","servicio_normalizado":true,"fuente":"medio"}],"proximas_medidas":[{"fecha":"fecha","tipo":"paro|movilización","convocante":"quién","detalle":"qué","fuente":"medio"}],"info_general":[{"titulo":"título","detalle":"detalle","fuente":"medio","url":"url"}],"fuentes_consultadas":["fuente1"],"confiabilidad":"alta|media|baja","nota":"aclaración"}`;
   };
 
   const checkBusStatus = useCallback(async (silent = false) => {
@@ -201,7 +207,7 @@ RESPONDÉ SOLO CON JSON PURO. Sin backticks, sin markdown, sin texto extra. Empe
       const isDirect = apiUrl.startsWith("https://");
       const requestBody = {
         model: "claude-sonnet-4-20250514",
-        max_tokens: 3000,
+        max_tokens: 5000,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
         messages: [{ role: "user", content: buildPrompt() }]
       };
