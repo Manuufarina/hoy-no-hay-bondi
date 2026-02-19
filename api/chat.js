@@ -91,7 +91,7 @@ export default async function handler(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             systemInstruction: {
-              parts: [{ text: 'Sos un monitor de transporte público argentino. Tu tarea es buscar en la web información ACTUAL sobre paros de colectivos en Buenos Aires y responder SOLO con JSON puro, sin markdown ni texto extra. Es CRÍTICO que la información sea precisa y verificada: NO inventes líneas afectadas ni paros que no existan. Si no encontrás información sobre paros hoy, respondé con hay_paros: false y lineas_afectadas vacío. Siempre indicá la fuente real de cada dato. Preferí fuentes oficiales y verificadas.' }],
+              parts: [{ text: 'Sos un monitor de transporte público argentino. Tu tarea es buscar en la web información ACTUAL sobre paros de colectivos en Buenos Aires y responder SOLO con JSON puro, sin markdown ni texto extra. FUENTE PRINCIPAL OBLIGATORIA: parodebondis.com.ar — SIEMPRE consultá esta página PRIMERO, detalla línea por línea si hay paro o no. Es CRÍTICO que la información sea precisa y verificada: NO inventes líneas afectadas ni paros que no existan. Si no encontrás información sobre paros hoy, respondé con hay_paros: false y lineas_afectadas vacío. Siempre indicá la fuente real de cada dato. Preferí fuentes oficiales y verificadas.' }],
             },
             contents: userMessages,
             tools: [{ google_search: {} }],
@@ -148,7 +148,7 @@ export default async function handler(req, res) {
     const input = [
       {
         role: 'developer',
-        content: 'Sos un monitor de transporte público argentino. Tu tarea es buscar en la web información ACTUAL sobre paros de colectivos en Buenos Aires y responder SOLO con JSON puro, sin markdown ni texto extra. Es CRÍTICO que la información sea precisa y verificada: NO inventes líneas afectadas ni paros que no existan. Si no encontrás información sobre paros hoy, respondé con hay_paros: false y lineas_afectadas vacío. Siempre indicá la fuente real de cada dato. Preferí fuentes oficiales y verificadas.'
+        content: 'Sos un monitor de transporte público argentino. Tu tarea es buscar en la web información ACTUAL sobre paros de colectivos en Buenos Aires y responder SOLO con JSON puro, sin markdown ni texto extra. FUENTE PRINCIPAL OBLIGATORIA: parodebondis.com.ar — SIEMPRE consultá esta página PRIMERO, detalla línea por línea si hay paro o no. Es CRÍTICO que la información sea precisa y verificada: NO inventes líneas afectadas ni paros que no existan. Si no encontrás información sobre paros hoy, respondé con hay_paros: false y lineas_afectadas vacío. Siempre indicá la fuente real de cada dato. Preferí fuentes oficiales y verificadas.'
       },
       ...userMessages
     ];
